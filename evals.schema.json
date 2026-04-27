@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill Eval Suite",
+  "description": "Test case definitions and assertions for evaluating a Claude Code skill.",
+  "type": "object",
+  "required": ["skill_name", "evals"],
+  "properties": {
+    "skill_name": {
+      "type": "string",
+      "description": "Slash-command name of the skill being evaluated, without plugin namespace."
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin namespace for skill invocation. If omitted, auto-detected from plugin.json."
+    },
+    "evals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "prompt", "expected_output", "assertions"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique identifier for the test case. Stable across runs."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The user prompt sent to the skill."
+          },
+          "expected_output": {
+            "type": "string",
+            "description": "Human-readable description of what good output looks like."
+          },
+          "files": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Paths to fixture files, relative to the evals.json directory."
+          },
+          "assertions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1,
+            "description": "Assertions graded by the LLM judge after each run."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
