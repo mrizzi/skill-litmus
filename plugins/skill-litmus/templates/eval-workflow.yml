@@ -1,0 +1,34 @@
+# Skill eval workflow — runs evals on PRs and commits baselines on push.
+# Copy this file to .github/workflows/eval.yml in your repo.
+# Required secret: ANTHROPIC_API_KEY
+#
+# The action detects the event type and branches behavior:
+#   pull_request → runs evals for changed skills, posts PR comment
+#   push to main → runs all evals, commits baselines
+
+name: Skill Evals
+
+on:
+  pull_request:
+    paths:
+      - 'skills/**/*.md'
+      - 'evals/**/evals.json'
+  push:
+    branches: [main]
+    paths:
+      - 'skills/**/*.md'
+      - 'evals/**/evals.json'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: mrizzi/skill-litmus@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

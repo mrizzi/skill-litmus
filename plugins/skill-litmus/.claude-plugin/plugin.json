@@ -1,0 +1,8 @@
+{
+  "name": "skill-litmus",
+  "description": "Eval runner and authoring tools for Claude Code skills. Run evals locally or in CI, grade assertions, track baselines.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Marco Rizzi"
+  }
+}
