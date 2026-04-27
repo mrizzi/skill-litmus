@@ -61,12 +61,18 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_CMD="/$PLUGIN:$SKILL_NAME"
 
-# Parse IDs
+# Parse and validate IDs
 EVAL_IDS=$(jq -r '.evals[].id' "$EVALS_FILE")
 if [[ -z "$EVAL_IDS" ]]; then
     echo "Error: no cases found in $EVALS_FILE" >&2
     exit 1
 fi
+for id in $EVAL_IDS; do
+    if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+        echo "Error: invalid eval id: $id (must be a positive integer)" >&2
+        exit 1
+    fi
+done
 
 # Create workspace layout
 mkdir -p "$WORKSPACE"
@@ -95,11 +101,15 @@ $prompt
 Expected output:
 $expected"
 
-        # Append fixture file contents
+        # Append fixture file contents (with path traversal guard)
         file_count=$(echo "$files_json" | jq -r 'length')
         for (( i=0; i<file_count; i++ )); do
             rel_path=$(echo "$files_json" | jq -r ".[$i]")
-            abs_path="$EVALS_DIR/$rel_path"
+            abs_path="$(cd "$EVALS_DIR" && python3 -c "import os,sys; print(os.path.normpath(os.path.join(sys.argv[1], sys.argv[2])))" "$EVALS_DIR" "$rel_path")"
+            if [[ "$abs_path" != "$EVALS_DIR/"* ]]; then
+                echo "Error: fixture path escapes evals directory: $rel_path" >&2
+                exit 1
+            fi
             if [[ -f "$abs_path" ]]; then
                 exec_prompt="$exec_prompt
 
@@ -251,12 +261,11 @@ echo "Aggregating results..."
 python3 "$SCRIPT_DIR/aggregate_benchmark.py" --results "$WORKSPACE"
 
 # --- Render summary ---
-baseline_arg=""
+baseline_args=()
 if [[ -n "$BASELINE" ]]; then
-    baseline_arg="--baseline $BASELINE"
+    baseline_args=(--baseline "$BASELINE")
 fi
-# shellcheck disable=SC2086
-python3 "$SCRIPT_DIR/render_summary.py" --results "$WORKSPACE" $baseline_arg
+python3 "$SCRIPT_DIR/render_summary.py" --results "$WORKSPACE" ${baseline_args[@]+"${baseline_args[@]}"}
 
 echo ""
 echo "Run complete. Results: $WORKSPACE/summary.md"

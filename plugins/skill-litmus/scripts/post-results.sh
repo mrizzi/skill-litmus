@@ -32,7 +32,7 @@ case "$MODE" in
             if [[ -f "$ws/summary.md" ]]; then
                 BODY+=$'\n'"$(cat "$ws/summary.md")"$'\n'$'\n'"---"$'\n'
             else
-                BODY+=$'\n'"**Warning:** No summary found in $ws"$'\n'
+                BODY+=$'\n'"**Warning:** No summary found for $(basename "$ws")"$'\n'
             fi
         done
 
@@ -75,6 +75,11 @@ case "$MODE" in
         [[ -z "$EVALS_DIR" ]]   && echo "Error: --evals-dir required" >&2 && exit 1
         [[ -z "$COMMIT_HASH" ]] && echo "Error: --commit-hash required" >&2 && exit 1
 
+        if ! [[ "$COMMIT_HASH" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "Error: invalid commit hash format: $COMMIT_HASH" >&2
+            exit 1
+        fi
+
         BASELINE_DIR="$EVALS_DIR/baselines/$COMMIT_HASH"
         mkdir -p "$BASELINE_DIR"
 
@@ -85,7 +90,9 @@ case "$MODE" in
 
         git add "$EVALS_DIR/baselines/"
         git commit -m "chore: update baseline for ${COMMIT_HASH:0:7}" || true
-        git push || true
+        if ! git push; then
+            echo "Warning: git push failed — baseline committed locally but not pushed" >&2
+        fi
 
         echo "Baseline committed: $BASELINE_DIR"
         ;;
