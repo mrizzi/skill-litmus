@@ -1,0 +1,117 @@
+name: 'Skill Litmus'
+description: 'Run eval suites for Claude Code skills and report results'
+
+inputs:
+  evals-dir:
+    description: 'Path to evals directory'
+    required: false
+    default: 'evals/'
+  skills-dir:
+    description: 'Path to skills directory (auto-detected from plugin.json if omitted)'
+    required: false
+  baseline-branch:
+    description: 'Branch for baseline comparison (defaults to repo default branch)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Verify dependencies
+      shell: bash
+      run: |
+        for cmd in jq python3 claude; do
+          if ! command -v "$cmd" &>/dev/null; then
+            echo "::error::$cmd is required but not found"
+            exit 1
+          fi
+        done
+
+    - name: Run evals
+      shell: bash
+      env:
+        EVALS_DIR: ${{ inputs.evals-dir }}
+        SKILLS_DIR: ${{ inputs.skills-dir }}
+        BASELINE_BRANCH: ${{ inputs.baseline-branch }}
+      run: |
+        SCRIPT_DIR="${{ github.action_path }}/plugins/skill-litmus/scripts"
+        WORKSPACE_ROOT=$(mktemp -d)
+        EVENT="$GITHUB_EVENT_NAME"
+
+        # Resolve baseline branch
+        if [[ -z "${BASELINE_BRANCH:-}" ]]; then
+          BASELINE_BRANCH=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+        fi
+
+        if [[ "$EVENT" == "pull_request" ]]; then
+          # --- PR mode: run only changed skills ---
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          CHANGED=$(git diff --name-only "$BASE_SHA"...HEAD)
+
+          # Discover suites whose skill or evals.json changed
+          EVALS_TO_RUN=()
+          for evals_json in ${EVALS_DIR}*/evals.json; do
+            [[ ! -f "$evals_json" ]] && continue
+            skill_dir="$(dirname "$evals_json")"
+            skill_name="$(basename "$skill_dir")"
+
+            if echo "$CHANGED" | grep -qE "(${skill_dir}/|${SKILLS_DIR:-skills/}.*${skill_name})"; then
+              EVALS_TO_RUN+=("$evals_json")
+            fi
+          done
+
+          if [[ ${#EVALS_TO_RUN[@]} -eq 0 ]]; then
+            echo "No changed suites detected."
+            exit 0
+          fi
+
+          WORKSPACE_ARGS=()
+          for evals_json in "${EVALS_TO_RUN[@]}"; do
+            skill_name=$(jq -r '.skill_name' "$evals_json")
+            ws="$WORKSPACE_ROOT/$skill_name"
+            skill_dir="$(dirname "$evals_json")"
+
+            # Try to fetch baseline from the base branch
+            baseline_arg=""
+            baseline_file="$skill_dir/baselines/latest/benchmark.json"
+            baseline_tmp="$WORKSPACE_ROOT/baseline-${skill_name}.json"
+            if git show "$BASELINE_BRANCH:$baseline_file" > "$baseline_tmp" 2>/dev/null; then
+              baseline_arg="--baseline $baseline_tmp"
+            fi
+
+            # shellcheck disable=SC2086
+            bash "$SCRIPT_DIR/run-evals.sh" \
+              --evals "$evals_json" \
+              --skill "$skill_name" \
+              --workspace "$ws" \
+              $baseline_arg
+
+            WORKSPACE_ARGS+=("--workspace" "$ws")
+          done
+
+          if [[ ${#WORKSPACE_ARGS[@]} -gt 0 ]]; then
+            bash "$SCRIPT_DIR/post-results.sh" pr "${WORKSPACE_ARGS[@]}"
+          fi
+
+        elif [[ "$EVENT" == "push" ]]; then
+          # --- Push mode: run all suites, commit baselines ---
+          for evals_json in ${EVALS_DIR}*/evals.json; do
+            [[ ! -f "$evals_json" ]] && continue
+            skill_name=$(jq -r '.skill_name' "$evals_json")
+            skill_dir="$(dirname "$evals_json")"
+            ws="$WORKSPACE_ROOT/$skill_name"
+
+            bash "$SCRIPT_DIR/run-evals.sh" \
+              --evals "$evals_json" \
+              --skill "$skill_name" \
+              --workspace "$ws"
+
+            bash "$SCRIPT_DIR/post-results.sh" baseline \
+              --workspace "$ws" \
+              --evals-dir "$skill_dir" \
+              --commit-hash "$GITHUB_SHA"
+          done
+
+        else
+          echo "Unsupported event: $EVENT -- skipping."
+          exit 0
+        fi
