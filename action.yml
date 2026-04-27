@@ -71,19 +71,18 @@ runs:
             skill_dir="$(dirname "$evals_json")"
 
             # Try to fetch baseline from the base branch
-            baseline_arg=""
+            baseline_args=()
             baseline_file="$skill_dir/baselines/latest/benchmark.json"
             baseline_tmp="$WORKSPACE_ROOT/baseline-${skill_name}.json"
             if git show "$BASELINE_BRANCH:$baseline_file" > "$baseline_tmp" 2>/dev/null; then
-              baseline_arg="--baseline $baseline_tmp"
+              baseline_args=(--baseline "$baseline_tmp")
             fi
 
-            # shellcheck disable=SC2086
             bash "$SCRIPT_DIR/run-evals.sh" \
               --evals "$evals_json" \
               --skill "$skill_name" \
               --workspace "$ws" \
-              $baseline_arg
+              ${baseline_args[@]+"${baseline_args[@]}"}
 
             WORKSPACE_ARGS+=("--workspace" "$ws")
           done
