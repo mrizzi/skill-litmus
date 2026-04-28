@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post results: PR comment or baseline commit.
+# Post results: PR review or baseline commit.
 # See docs/specs/2026-04-24-standalone-eval-runner-design.md Section 3.
 #
 # Usage:
@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-COMMENT_MARKER="<!-- skill-litmus-results -->"
+REVIEW_MARKER="## Skill Eval Results"
 
 MODE="${1:-}"
 [[ -z "$MODE" ]] && echo "Usage: post-results.sh {pr|baseline} [options]" >&2 && exit 1
@@ -26,8 +26,8 @@ case "$MODE" in
 
         [[ ${#WORKSPACES[@]} -eq 0 ]] && echo "Error: at least one --workspace required" >&2 && exit 1
 
-        # Build combined comment body
-        BODY="$COMMENT_MARKER"$'\n'"## Skill Eval Results"$'\n'
+        # Build combined review body
+        BODY="$REVIEW_MARKER"$'\n'
         for ws in "${WORKSPACES[@]}"; do
             if [[ -f "$ws/summary.md" ]]; then
                 BODY+=$'\n'"$(cat "$ws/summary.md")"$'\n'$'\n'"---"$'\n'
@@ -43,18 +43,19 @@ case "$MODE" in
             exit 1
         fi
 
-        # Find existing skill-litmus comment to update
-        COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/$PR_NUMBER/comments" \
-            --jq ".[] | select(.body | startswith(\"$COMMENT_MARKER\")) | .id" \
-            2>/dev/null | head -1 || true)
+        # Find existing skill-litmus review to update
+        REVIEW_ID=$(gh api "repos/{owner}/{repo}/pulls/$PR_NUMBER/reviews" \
+            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REVIEW_MARKER\"))) | .id] | first // empty" \
+            2>/dev/null || true)
 
-        if [[ -n "$COMMENT_ID" ]]; then
-            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" \
-                -X PATCH -f body="$BODY" > /dev/null
-            echo "Updated existing PR comment ($COMMENT_ID)"
+        if [[ -n "$REVIEW_ID" ]]; then
+            gh api "repos/{owner}/{repo}/pulls/$PR_NUMBER/reviews/$REVIEW_ID" \
+                -X PUT -f body="$BODY" > /dev/null
+            echo "Updated existing PR review ($REVIEW_ID)"
         else
-            gh pr comment "$PR_NUMBER" --body "$BODY" > /dev/null
-            echo "Posted new PR comment"
+            gh api "repos/{owner}/{repo}/pulls/$PR_NUMBER/reviews" \
+                -X POST -f event="COMMENT" -f body="$BODY" > /dev/null
+            echo "Posted new PR review"
         fi
         ;;
 
