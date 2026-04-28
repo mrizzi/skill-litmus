@@ -142,7 +142,7 @@ Single action with event-driven behavior.
    `evals-dir/**/evals.json` against base SHA.
 3. For each changed skill with an `evals.json`, call `run-evals.sh`.
 4. Call `post-results.sh pr` — reads each workspace's `summary.md`,
-   posts or updates a single PR comment with all results.
+   creates or updates a PR review (`COMMENT` event) with all results.
 
 **On `push` (to default branch):**
 
