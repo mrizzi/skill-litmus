@@ -1,0 +1,18 @@
+{
+  "name": "skill-litmus",
+  "owner": {
+    "name": "Marco Rizzi"
+  },
+  "metadata": {
+    "description": "Eval runner and authoring tools for Claude Code skills. Run evals locally or in CI, grade assertions, track baselines.",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "skill-litmus",
+      "source": "./plugins/skill-litmus",
+      "version": "0.1.0",
+      "description": "Eval runner and authoring tools for Claude Code skills. Run evals locally or in CI, grade assertions, track baselines."
+    }
+  ]
+}
