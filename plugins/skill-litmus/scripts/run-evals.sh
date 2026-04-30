@@ -265,7 +265,7 @@ baseline_args=()
 if [[ -n "$BASELINE" ]]; then
     baseline_args=(--baseline "$BASELINE")
 fi
-python3 "$SCRIPT_DIR/render_summary.py" --results "$WORKSPACE" ${baseline_args[@]+"${baseline_args[@]}"}
+python3 "$SCRIPT_DIR/render_summary.py" --results "$WORKSPACE" --skill "$SKILL_NAME" ${baseline_args[@]+"${baseline_args[@]}"}
 
 echo ""
 echo "Run complete. Results: $WORKSPACE/summary.md"
