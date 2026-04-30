@@ -26,7 +26,7 @@ def fmt_delta(value, fmt_fn=fmt_pct, invert=False):
     return f"{sign}{fmt_fn(value)}{indicator}"
 
 
-def render(results_dir, baseline_path=None):
+def render(results_dir, baseline_path=None, skill=None):
     benchmark_path = os.path.join(results_dir, "benchmark.json")
     if not os.path.exists(benchmark_path):
         print(f"Error: {benchmark_path} not found", file=sys.stderr)
@@ -39,8 +39,9 @@ def render(results_dir, baseline_path=None):
     if baseline_path and os.path.exists(baseline_path):
         baseline = load_json(baseline_path)
 
+    heading = f"# Eval Results: {skill}" if skill else "# Eval Results"
     lines = []
-    lines.append("# Eval Results")
+    lines.append(heading)
     lines.append("")
     lines.append("## Summary")
     lines.append("")
@@ -127,13 +128,19 @@ def main():
     parser.add_argument(
         "--baseline", help="Path to baseline benchmark.json for comparison"
     )
+    parser.add_argument(
+        "--skill",
+        type=str,
+        default=None,
+        help="Skill name to include in the heading",
+    )
     args = parser.parse_args()
 
     if not os.path.isdir(args.results):
         print(f"Error: {args.results} is not a directory", file=sys.stderr)
         sys.exit(1)
 
-    render(args.results, args.baseline)
+    render(args.results, args.baseline, args.skill)
     print(f"Summary written to {os.path.join(args.results, 'summary.md')}")
 
 
