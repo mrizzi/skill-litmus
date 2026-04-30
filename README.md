@@ -17,6 +17,18 @@ so an **Anthropic API key** is required. It ships as a Claude Code
 plugin with two skills, a bash/Python engine, and a GitHub Action for
 CI.
 
+## Table of contents
+
+- [Prerequisites](#prerequisites)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [evals.json schema](#evalsjson-schema)
+- [CI with GitHub Actions](#ci-with-github-actions)
+- [Iterating on a skill](#iterating-on-a-skill)
+- [Divergences from agentskills.io](#divergences-from-agentskillsio)
+- [License](#license)
+
 ## Prerequisites
 
 - **Claude Code** CLI (`claude`) ---
@@ -314,32 +326,6 @@ intentional divergences exist in surrounding infrastructure:
 4. **Token counting** --- agentskills.io records `total_tokens` per run.
    skill-litmus captures wall-clock `duration_seconds` instead, since
    `claude -p` does not expose token counts in its output.
-
-## Project structure
-
-```
-skill-litmus/
-  action.yml                           # GitHub Action
-  evals.schema.json                    # JSON Schema for evals.json
-  plugins/
-    skill-litmus/
-      .claude-plugin/
-        plugin.json
-      scripts/
-        run-evals.sh                   # Core orchestrator
-        aggregate_benchmark.py         # Builds benchmark.json
-        render_summary.py              # Renders summary.md
-        post-results.sh                # PR reviews and baseline commits
-      skills/
-        run-evals/
-          SKILL.md                     # Interactive eval runner
-        develop-eval/
-          SKILL.md                     # Eval authoring and iteration
-      templates/
-        eval-workflow.yml              # CI template for adopters
-  tests/
-    ...
-```
 
 ## License
 
