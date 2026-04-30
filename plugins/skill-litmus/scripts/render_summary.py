@@ -109,6 +109,21 @@ def render(results_dir, baseline_path=None, skill=None):
                         lines.append(f"  - {assertion['reasoning']}")
                 lines.append("")
 
+    eval_ids = [r["eval_id"] for r in s["results"]]
+    lines.append("")
+    lines.append("### Provide feedback")
+    lines.append("")
+    lines.append(
+        "Copy the block below, fill in your notes, and post as a PR comment:"
+    )
+    lines.append("")
+    lines.append("```")
+    lines.append("/skill-litmus feedback")
+    for eid in eval_ids:
+        lines.append(f"eval-{eid}:")
+    lines.append("```")
+    lines.append("")
+
     output = "\n".join(lines)
     if not output.endswith("\n"):
         output += "\n"

@@ -122,3 +122,50 @@ def test_baseline_comparison(workspace, tmp_path):
     summary = (workspace.root / "summary.md").read_text()
     assert "Baseline" in summary
     assert "Pass rate" in summary
+
+
+def test_feedback_template_included(workspace):
+    setup_workspace_with_benchmark(workspace)
+
+    result = run_render(workspace.root)
+    assert result.returncode == 0
+
+    summary = (workspace.root / "summary.md").read_text()
+    assert "### Provide feedback" in summary
+    assert "/skill-litmus feedback" in summary
+    assert "eval-1:" in summary
+    assert "eval-2:" in summary
+
+
+def test_feedback_template_lists_all_eval_ids(workspace):
+    workspace.add_eval(
+        1,
+        grading={
+            "eval_id": 1,
+            "assertions": [
+                {"assertion": "A", "passed": True, "reasoning": "ok"},
+            ],
+        },
+        timing={"eval_id": 1, "duration_seconds": 10.0},
+    )
+    workspace.add_eval(
+        5,
+        grading={
+            "eval_id": 5,
+            "assertions": [
+                {"assertion": "B", "passed": True, "reasoning": "ok"},
+            ],
+        },
+        timing={"eval_id": 5, "duration_seconds": 10.0},
+    )
+    subprocess.run(
+        [sys.executable, AGGREGATE_SCRIPT, "--results", str(workspace.root)],
+        check=True,
+    )
+
+    result = run_render(workspace.root)
+    assert result.returncode == 0
+
+    summary = (workspace.root / "summary.md").read_text()
+    assert "eval-1:" in summary
+    assert "eval-5:" in summary
