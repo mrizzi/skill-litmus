@@ -253,9 +253,6 @@ for pid in "${pids[@]}"; do
     wait "$pid" || true
 done
 
-# --- Create empty feedback.json ---
-echo '{}' > "$WORKSPACE/feedback.json"
-
 # --- Aggregate ---
 echo "Aggregating results..."
 python3 "$SCRIPT_DIR/aggregate_benchmark.py" --results "$WORKSPACE"
