@@ -10,8 +10,18 @@ set -euo pipefail
 
 REVIEW_MARKER="## Skill Eval Results"
 
+detect_pr_number() {
+    local pr_num
+    pr_num=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+    if [[ -z "$pr_num" || ! "$pr_num" =~ ^[0-9]+$ ]]; then
+        echo "Error: could not detect valid PR number. Are you in a PR context?" >&2
+        exit 1
+    fi
+    echo "$pr_num"
+}
+
 MODE="${1:-}"
-[[ -z "$MODE" ]] && echo "Usage: post-results.sh {pr|baseline} [options]" >&2 && exit 1
+[[ -z "$MODE" ]] && echo "Usage: post-results.sh {pr|baseline|comment-reply} [options]" >&2 && exit 1
 shift
 
 case "$MODE" in
@@ -36,12 +46,7 @@ case "$MODE" in
             fi
         done
 
-        # Detect PR number
-        PR_NUMBER=$(gh pr view --json number -q '.number' 2>/dev/null || true)
-        if [[ -z "$PR_NUMBER" ]]; then
-            echo "Error: could not detect PR number. Are you in a PR context?" >&2
-            exit 1
-        fi
+        PR_NUMBER=$(detect_pr_number)
 
         # Find existing skill-litmus review to update
         REVIEW_ID=$(gh api "repos/{owner}/{repo}/pulls/$PR_NUMBER/reviews" \
@@ -98,8 +103,39 @@ case "$MODE" in
         echo "Baseline committed: $BASELINE_DIR"
         ;;
 
+    comment-reply)
+        COMMENT_ID=""
+        BODY=""
+        REACTION=""
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --comment-id) COMMENT_ID="$2"; shift 2 ;;
+                --body)       BODY="$2";       shift 2 ;;
+                --reaction)   REACTION="$2";   shift 2 ;;
+                *) echo "Error: unknown argument: $1" >&2; exit 1 ;;
+            esac
+        done
+
+        if [[ -n "$COMMENT_ID" && ! "$COMMENT_ID" =~ ^[0-9]+$ ]]; then
+            echo "Error: invalid comment ID: $COMMENT_ID" >&2
+            exit 1
+        fi
+
+        if [[ -n "$REACTION" && -n "$COMMENT_ID" ]]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID/reactions" \
+                -X POST -f content="$REACTION" > /dev/null 2>&1 || echo "Warning: failed to add reaction" >&2
+        fi
+
+        if [[ -n "$BODY" ]]; then
+            PR_NUMBER=$(detect_pr_number)
+            gh api "repos/{owner}/{repo}/issues/$PR_NUMBER/comments" \
+                -X POST -f body="$BODY" > /dev/null
+            echo "Posted reply to PR #$PR_NUMBER"
+        fi
+        ;;
+
     *)
-        echo "Usage: post-results.sh {pr|baseline} [options]" >&2
+        echo "Usage: post-results.sh {pr|baseline|comment-reply} [options]" >&2
         exit 1
         ;;
 esac
