@@ -63,7 +63,10 @@ Optionally:
 When the user provides a workspace with existing results:
 
 1. Read `eval-*/grading.json` files — identify failed assertions.
-2. Read `feedback.json` — pick up human review notes.
+2. Read `feedback.json` if it exists — pick up human review notes.
+   If `feedback.json` is missing, iterate on failed assertions and
+   execution transcripts alone. Do not treat missing feedback as an
+   error — it means no human review has occurred yet.
 3. Read the skill's SKILL.md — understand current instructions.
 4. Propose SKILL.md improvements following agentskills.io principles:
    generalize from feedback, keep instructions lean, explain the why.

@@ -38,10 +38,12 @@ def setup_workspace_with_benchmark(workspace):
     )
 
 
-def run_render(workspace_path, baseline_path=None):
+def run_render(workspace_path, baseline_path=None, skill=None):
     cmd = [sys.executable, RENDER_SCRIPT, "--results", str(workspace_path)]
     if baseline_path:
         cmd += ["--baseline", str(baseline_path)]
+    if skill:
+        cmd += ["--skill", skill]
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
@@ -122,3 +124,60 @@ def test_baseline_comparison(workspace, tmp_path):
     summary = (workspace.root / "summary.md").read_text()
     assert "Baseline" in summary
     assert "Pass rate" in summary
+
+
+def test_feedback_template_included(workspace):
+    setup_workspace_with_benchmark(workspace)
+
+    result = run_render(workspace.root)
+    assert result.returncode == 0
+
+    summary = (workspace.root / "summary.md").read_text()
+    assert "### Provide feedback" in summary
+    assert "/skill-litmus feedback" in summary
+    assert "eval-1:" in summary
+    assert "eval-2:" in summary
+
+
+def test_feedback_template_includes_skill_name(workspace):
+    setup_workspace_with_benchmark(workspace)
+
+    result = run_render(workspace.root, skill="plan-feature")
+    assert result.returncode == 0
+
+    summary = (workspace.root / "summary.md").read_text()
+    assert "/skill-litmus feedback plan-feature" in summary
+
+
+def test_feedback_template_lists_all_eval_ids(workspace):
+    workspace.add_eval(
+        1,
+        grading={
+            "eval_id": 1,
+            "assertions": [
+                {"assertion": "A", "passed": True, "reasoning": "ok"},
+            ],
+        },
+        timing={"eval_id": 1, "duration_seconds": 10.0},
+    )
+    workspace.add_eval(
+        5,
+        grading={
+            "eval_id": 5,
+            "assertions": [
+                {"assertion": "B", "passed": True, "reasoning": "ok"},
+            ],
+        },
+        timing={"eval_id": 5, "duration_seconds": 10.0},
+    )
+    subprocess.run(
+        [sys.executable, AGGREGATE_SCRIPT, "--results", str(workspace.root)],
+        check=True,
+    )
+
+    result = run_render(workspace.root)
+    assert result.returncode == 0
+
+    summary = (workspace.root / "summary.md").read_text()
+    assert "eval-1:" in summary
+    assert "eval-5:" in summary

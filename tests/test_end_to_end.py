@@ -128,7 +128,6 @@ def test_full_pipeline(full_eval_suite, tmp_path, mock_claude_e2e):
     # Aggregated outputs
     assert (workspace / "benchmark.json").is_file()
     assert (workspace / "summary.md").is_file()
-    assert (workspace / "feedback.json").is_file()
 
     # benchmark.json structure
     benchmark = json.loads((workspace / "benchmark.json").read_text())

@@ -97,7 +97,6 @@ def test_workspace_layout_created(simple_eval_suite, tmp_path, mock_claude):
     assert (workspace / "eval-1" / "grading.json").is_file()
     assert (workspace / "benchmark.json").is_file()
     assert (workspace / "summary.md").is_file()
-    assert (workspace / "feedback.json").is_file()
 
 
 def test_plugin_auto_detect_from_evals_json(simple_eval_suite, tmp_path, mock_claude):
