@@ -3,8 +3,9 @@
 # Required secret: ANTHROPIC_API_KEY
 #
 # The action detects the event type and branches behavior:
-#   pull_request → runs evals for changed skills, posts PR comment
+#   pull_request → runs evals for changed skills, posts PR review
 #   push to main → runs all evals, commits baselines
+#   issue_comment → handles /skill-litmus commands (feedback, rerun, iterate)
 
 name: Skill Evals
 
@@ -18,10 +19,19 @@ on:
     paths:
       - 'skills/**/*.md'
       - 'evals/**/evals.json'
+  issue_comment:
+    types: [created]
 
 jobs:
   eval:
     runs-on: ubuntu-latest
+    # Only run for PR events, push events, or /skill-litmus comments on PRs
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       startsWith(github.event.comment.body, '/skill-litmus'))
     permissions:
       contents: write
       pull-requests: write
@@ -29,6 +39,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Download previous workspace artifact for iterate command
+      - name: Download eval workspace
+        if: >-
+          github.event_name == 'issue_comment' &&
+          startsWith(github.event.comment.body, '/skill-litmus iterate')
+        uses: actions/download-artifact@v4
+        with:
+          name: skill-litmus-workspace
+          path: ${{ runner.temp }}/skill-litmus-workspace
+        continue-on-error: true
+
       - uses: mrizzi/skill-litmus@v1
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      # Upload workspace artifact after eval runs (for iterate to use later)
+      - name: Upload eval workspace
+        if: >-
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'issue_comment' &&
+           startsWith(github.event.comment.body, '/skill-litmus rerun'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-litmus-workspace
+          path: ${{ runner.temp }}/skill-litmus-workspace
+          retention-days: 90
+          if-no-files-found: ignore
