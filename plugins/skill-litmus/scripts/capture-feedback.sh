@@ -37,6 +37,8 @@ if [[ "$OUTPUT" == *".."* ]]; then
     exit 1
 fi
 
+mkdir -p "$(dirname "$OUTPUT")"
+
 if [[ -n "$COMMENT_FILE" ]]; then
     COMMENT=$(cat "$COMMENT_FILE" 2>/dev/null) || { echo "Error: could not read $COMMENT_FILE" >&2; exit 1; }
 fi

@@ -131,7 +131,7 @@ def test_path_traversal_rejected(tmp_path):
         text=True,
     )
     assert result.returncode != 0
-    assert ".." in result.stderr
+    assert "must not contain '..'" in result.stderr
 
 
 def test_feedback_text_with_colons(tmp_path):
