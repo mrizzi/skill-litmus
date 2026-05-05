@@ -42,13 +42,27 @@ if [[ -z "$CHANGED_FILES" ]]; then
     CHANGED_FILES=$(git diff --name-only "$BASE_SHA"...HEAD 2>/dev/null || true)
 fi
 
+SKILLS_DIR_PATTERN=""
+if [[ -n "$SKILLS_DIR" ]]; then
+    SKILLS_DIR_PATTERN="$SKILLS_DIR"
+else
+    while IFS= read -r pj; do
+        plugin_dir="$(dirname "$(dirname "$pj")")"
+        if [[ -d "$plugin_dir/skills" ]]; then
+            [[ -n "$SKILLS_DIR_PATTERN" ]] && SKILLS_DIR_PATTERN+="|"
+            SKILLS_DIR_PATTERN+="${plugin_dir#./}/skills/"
+        fi
+    done < <(find . -name "plugin.json" -path "*/.claude-plugin/*" 2>/dev/null)
+    : "${SKILLS_DIR_PATTERN:=skills/}"
+fi
+
 EVALS_TO_RUN=()
 for evals_json in ${EVALS_DIR}*/evals.json; do
     [[ ! -f "$evals_json" ]] && continue
     skill_dir="$(dirname "$evals_json")"
     skill_name="$(basename "$skill_dir")"
 
-    if echo "$CHANGED_FILES" | grep -qE "(${skill_dir}/|${SKILLS_DIR:-skills/}.*${skill_name})"; then
+    if echo "$CHANGED_FILES" | grep -qE "(${skill_dir}/|(${SKILLS_DIR_PATTERN}).*${skill_name})"; then
         EVALS_TO_RUN+=("$evals_json")
     fi
 done
