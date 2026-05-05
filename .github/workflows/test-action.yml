@@ -1,0 +1,105 @@
+name: Test Action
+
+on:
+  pull_request:
+    paths:
+      - 'action.yml'
+      - 'plugins/skill-litmus/scripts/**'
+      - 'plugins/skill-litmus/templates/**'
+      - 'tests/**'
+      - 'evals.schema.json'
+      - '.github/workflows/test-action.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - 'plugins/skill-litmus/scripts/**'
+      - 'plugins/skill-litmus/templates/**'
+      - 'tests/**'
+      - 'evals.schema.json'
+      - '.github/workflows/test-action.yml'
+
+jobs:
+  lint:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate bash syntax of action.yml embedded scripts
+        run: |
+          python3 -c "
+          import yaml, subprocess, sys
+          with open('action.yml') as f:
+              data = yaml.safe_load(f)
+          failed = False
+          for i, step in enumerate(data['runs']['steps']):
+              if 'run' not in step:
+                  continue
+              name = step.get('name', f'step-{i}')
+              result = subprocess.run(
+                  ['bash', '-n'],
+                  input=step['run'],
+                  capture_output=True, text=True
+              )
+              if result.returncode != 0:
+                  print(f'::error::Bash syntax error in step {i} ({name})')
+                  print(result.stderr)
+                  failed = True
+              else:
+                  print(f'Step {i} ({name}): OK')
+          if failed:
+              sys.exit(1)
+          "
+
+      - name: Validate bash syntax of standalone scripts
+        run: |
+          status=0
+          for script in plugins/skill-litmus/scripts/*.sh; do
+            echo -n "$(basename "$script"): "
+            if bash -n "$script" 2>&1; then
+              echo "OK"
+            else
+              status=1
+            fi
+          done
+          exit "$status"
+
+      - name: Validate Python syntax
+        run: |
+          status=0
+          for script in plugins/skill-litmus/scripts/*.py; do
+            echo -n "$(basename "$script"): "
+            if python3 -m py_compile "$script" 2>&1; then
+              echo "OK"
+            else
+              status=1
+            fi
+          done
+          exit "$status"
+
+      - name: Lint workflow files
+        uses: rhysd/actionlint@v1
+
+      - name: ShellCheck standalone scripts
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: plugins/skill-litmus/scripts
+          severity: warning
+
+  unit-tests:
+    name: Unit Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Run tests
+        run: pytest tests/ -v
