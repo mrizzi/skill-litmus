@@ -250,8 +250,8 @@ runs:
               GRADING_CONTEXT=""
               while IFS= read -r -d '' grading; do
                 GRADING_CONTEXT="$GRADING_CONTEXT
-          --- $(basename "$(dirname "$grading")") ---
-          $(cat "$grading")"
+        --- $(basename "$(dirname "$grading")") ---
+        $(cat "$grading")"
               done < <(find "$WORKSPACE_ROOT" -name "grading.json" -print0 2>/dev/null)
 
               SKILL_CONTENT=""
@@ -259,24 +259,24 @@ runs:
 
               PROMPT_FILE="$WORKSPACE_ROOT/iterate_prompt.txt"
               cat > "$PROMPT_FILE" <<PROMPT_EOF
-          You are iterating on a skill based on results and human feedback.
+        You are iterating on a skill based on results and human feedback.
 
-          Current SKILL.md:
-          $SKILL_CONTENT
+        Current SKILL.md:
+        $SKILL_CONTENT
 
-          Human feedback (per-eval):
-          $(cat "$FEEDBACK_PATH")
+        Human feedback (per-eval):
+        $(cat "$FEEDBACK_PATH")
 
-          Grading results:
-          $GRADING_CONTEXT
+        Grading results:
+        $GRADING_CONTEXT
 
-          Propose specific improvements to SKILL.md following these principles:
-          - Generalize from feedback — fixes should address underlying issues broadly
-          - Keep instructions lean — fewer, better instructions outperform exhaustive rules
-          - Explain the why — reasoning-based instructions work better than rigid directives
+        Propose specific improvements to SKILL.md following these principles:
+        - Generalize from feedback — fixes should address underlying issues broadly
+        - Keep instructions lean — fewer, better instructions outperform exhaustive rules
+        - Explain the why — reasoning-based instructions work better than rigid directives
 
-          Respond with ONLY the proposed changes as a unified diff block.
-          PROMPT_EOF
+        Respond with ONLY the proposed changes as a unified diff block.
+        PROMPT_EOF
 
               if ! ITERATE_RESULT=$(cat "$PROMPT_FILE" | claude -p \
                 --permission-mode dontAsk \
@@ -289,11 +289,11 @@ runs:
 
               REPLY_BODY="## Proposed SKILL.md Improvements
 
-          Based on feedback for ${SKILL_NAME}:
+        Based on feedback for ${SKILL_NAME}:
 
-          $ITERATE_RESULT
+        $ITERATE_RESULT
 
-          > Apply these changes manually if they look good. Then run \`/skill-litmus rerun\` to verify."
+        > Apply these changes manually if they look good. Then run \`/skill-litmus rerun\` to verify."
 
               bash "$SCRIPT_DIR/post-results.sh" comment-reply \
                 --comment-id "$COMMENT_ID" --reaction "+1" \
