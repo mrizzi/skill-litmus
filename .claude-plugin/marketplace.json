@@ -11,7 +11,7 @@
     {
       "name": "skill-litmus",
       "source": "./plugins/skill-litmus",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "description": "Eval runner and authoring tools for Claude Code skills. Run evals locally or in CI, grade assertions, track baselines."
     }
   ]
