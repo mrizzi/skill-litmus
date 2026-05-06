@@ -5,7 +5,8 @@
 # Usage:
 #   run-pr-evals.sh --base-sha <sha> --evals-dir <path> \
 #                    --workspace-root <dir> --changed-files <text> \
-#                    [--skills-dir <path>] [--baseline-branch <branch>]
+#                    [--skills-dir <path>] [--baseline-branch <branch>] \
+#                    [--pr-number <num>]
 
 set -euo pipefail
 
@@ -15,6 +16,7 @@ WORKSPACE_ROOT=""
 CHANGED_FILES=""
 SKILLS_DIR=""
 BASELINE_BRANCH=""
+PR_NUMBER="${PR_NUMBER:-}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -24,6 +26,7 @@ while [[ $# -gt 0 ]]; do
         --changed-files)   CHANGED_FILES="$2";   shift 2 ;;
         --skills-dir)      SKILLS_DIR="$2";      shift 2 ;;
         --baseline-branch) BASELINE_BRANCH="$2"; shift 2 ;;
+        --pr-number)       PR_NUMBER="$2";       shift 2 ;;
         *) echo "Error: unknown argument: $1" >&2; exit 1 ;;
     esac
 done
@@ -99,6 +102,7 @@ for evals_json in "${EVALS_TO_RUN[@]}"; do
 done
 
 if [[ ${#WORKSPACE_ARGS[@]} -gt 0 ]]; then
+    export PR_NUMBER
     bash "$SCRIPT_DIR/post-results.sh" pr "${WORKSPACE_ARGS[@]}"
 fi
 
