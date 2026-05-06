@@ -82,6 +82,21 @@ def _make_eval_suite(evals_dir, skill_name="test-skill"):
 
 # --- pull_request event ---
 
+def test_pull_request_missing_pr_number(tmp_path, mock_bin, action_scripts):
+    mock_dir, _ = mock_bin
+    action_path, _ = action_scripts
+    env = _base_env(tmp_path, action_path, mock_dir)
+    env["GITHUB_EVENT_NAME"] = "pull_request"
+    env["PR_BASE_SHA"] = "abc123"
+    env.pop("PR_NUMBER", None)
+
+    result = subprocess.run(
+        ["bash", SCRIPT], capture_output=True, text=True, env=env,
+    )
+    assert result.returncode != 0
+    assert "PR_NUMBER is required" in result.stderr
+
+
 def test_pull_request_calls_run_pr_evals(tmp_path, mock_bin, action_scripts):
     mock_dir, _ = mock_bin
     action_path, scripts_log = action_scripts
