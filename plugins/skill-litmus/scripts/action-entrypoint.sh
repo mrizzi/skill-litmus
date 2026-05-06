@@ -17,6 +17,10 @@ EVENT="$GITHUB_EVENT_NAME"
 
 if [[ "$EVENT" == "pull_request" ]]; then
   # --- PR mode: run changed skills via shared script ---
+  if [[ -z "${PR_NUMBER:-}" ]]; then
+    echo "Error: PR_NUMBER is required for pull_request events" >&2
+    exit 1
+  fi
   CHANGED=$(git diff --name-only "$PR_BASE_SHA"...HEAD)
 
   bash "$SCRIPT_DIR/run-pr-evals.sh" \
@@ -80,6 +84,11 @@ elif [[ "$EVENT" == "issue_comment" ]]; then
       --comment-id "$COMMENT_ID" --reaction "-1" \
       --body "Only repository collaborators can use /skill-litmus commands."
     exit 0
+  fi
+
+  if [[ -z "${PR_NUMBER:-}" ]]; then
+    echo "Error: PR_NUMBER is required for issue_comment events on PRs" >&2
+    exit 1
   fi
 
   # React with eyes to acknowledge (after permission check)
