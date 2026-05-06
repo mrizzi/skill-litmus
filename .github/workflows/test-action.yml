@@ -9,6 +9,7 @@ on:
       - 'tests/**'
       - 'evals.schema.json'
       - '.github/workflows/test-action.yml'
+      - '.github/test-fixtures/**'
   push:
     branches: [main]
     paths:
@@ -18,6 +19,7 @@ on:
       - 'tests/**'
       - 'evals.schema.json'
       - '.github/workflows/test-action.yml'
+      - '.github/test-fixtures/**'
 
 jobs:
   lint:
@@ -103,3 +105,47 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v
+
+  integration:
+    name: End-to-End Eval Run
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Skip if no API key
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::notice::Skipping — ANTHROPIC_API_KEY not configured"
+
+      - name: Install Claude Code
+        if: env.ANTHROPIC_API_KEY != ''
+        shell: bash
+        run: |
+          if ! command -v claude &>/dev/null; then
+            curl -fsSL https://claude.ai/install.sh | bash
+          fi
+
+      - name: Run eval engine with test fixture
+        if: env.ANTHROPIC_API_KEY != ''
+        run: |
+          bash plugins/skill-litmus/scripts/run-evals.sh \
+            --evals .github/test-fixtures/ci-eval/evals.json \
+            --skill ci-eval \
+            --workspace "$RUNNER_TEMP/ci-eval-workspace" \
+            --plugin skill-litmus
+
+      - name: Verify output structure
+        if: env.ANTHROPIC_API_KEY != ''
+        run: |
+          ws="$RUNNER_TEMP/ci-eval-workspace"
+          test -f "$ws/benchmark.json"
+          test -f "$ws/summary.md"
+          test -d "$ws/eval-1"
+          test -f "$ws/eval-1/grading.json"
+          test -f "$ws/eval-1/timing.json"
+          jq -e '.run_summary.total_evals == 1' "$ws/benchmark.json"
+          echo "All integration checks passed"

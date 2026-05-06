@@ -12,8 +12,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REVIEW_MARKER="## Skill Eval Results"
 
 detect_pr_number() {
-    local pr_num
-    pr_num=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+    local pr_num="${PR_NUMBER:-}"
+    if [[ -z "$pr_num" ]]; then
+        pr_num=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+    fi
     if [[ -z "$pr_num" || ! "$pr_num" =~ ^[0-9]+$ ]]; then
         echo "Error: could not detect valid PR number. Are you in a PR context?" >&2
         exit 1

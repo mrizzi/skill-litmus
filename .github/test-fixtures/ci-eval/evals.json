@@ -1,0 +1,13 @@
+{
+  "skill_name": "ci-eval",
+  "plugin": "skill-litmus",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Echo the text 'hello world' to stdout",
+      "expected_output": "The text hello world printed to stdout",
+      "files": [],
+      "assertions": ["The output contains the text hello world"]
+    }
+  ]
+}
