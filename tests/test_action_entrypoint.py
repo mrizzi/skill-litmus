@@ -4,8 +4,9 @@ import os
 import stat
 import subprocess
 
+import re
+
 import pytest
-import yaml
 
 SCRIPT = "plugins/skill-litmus/scripts/action-entrypoint.sh"
 
@@ -318,10 +319,11 @@ def test_unsupported_event_exits_cleanly(tmp_path, mock_bin, action_scripts):
 def test_action_yml_sets_required_env_vars():
     """action.yml must pass all env vars the entrypoint and downstream scripts need."""
     with open("action.yml") as f:
-        data = yaml.safe_load(f)
-    step = next(s for s in data["runs"]["steps"]
-                if s.get("name") == "Run evals")
-    env_keys = set(step.get("env", {}).keys())
+        content = f.read()
+    # Extract env keys from the "Run evals" step's env block
+    m = re.search(r'- name: Run evals\n.*?env:\n((?:\s+\w+:.*\n)+)', content, re.DOTALL)
+    assert m, "Could not find 'Run evals' step with env block in action.yml"
+    env_keys = set(re.findall(r'^\s+(\w+):', m.group(1), re.MULTILINE))
     required = {"GH_TOKEN", "EVALS_DIR", "ACTION_PATH",
                 "PR_NUMBER", "PR_BASE_SHA"}
     missing = required - env_keys
