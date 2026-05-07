@@ -85,6 +85,39 @@ def test_pr_fails_without_token(mock_gh, tmp_path):
     assert "GH_TOKEN" in result.stderr
 
 
+def test_comment_reply_fails_without_token(mock_gh):
+    mock_dir, _ = mock_gh
+    env = os.environ.copy()
+    env["PATH"] = mock_dir + ":" + env["PATH"]
+    env.pop("GH_TOKEN", None)
+    env.pop("GITHUB_TOKEN", None)
+
+    result = subprocess.run(
+        ["bash", SCRIPT, "comment-reply", "--comment-id", "123", "--reaction", "eyes"],
+        capture_output=True, text=True, env=env,
+    )
+    assert result.returncode != 0
+    assert "GH_TOKEN" in result.stderr
+
+
+def test_pr_succeeds_with_github_token(mock_gh, tmp_path):
+    mock_dir, _ = mock_gh
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "summary.md").write_text("# Results\nAll pass")
+    env = os.environ.copy()
+    env["PATH"] = mock_dir + ":" + env["PATH"]
+    env["GITHUB_TOKEN"] = "test-token-alt"
+    env["PR_NUMBER"] = "1"
+    env.pop("GH_TOKEN", None)
+
+    result = subprocess.run(
+        ["bash", SCRIPT, "pr", "--workspace", str(ws)],
+        capture_output=True, text=True, env=env,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 # --- comment-reply subcommand ---
 
 def test_comment_reply_rejects_non_numeric_id(mock_gh):
