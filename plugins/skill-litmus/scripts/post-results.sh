@@ -8,6 +8,11 @@
 
 set -euo pipefail
 
+if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
+    echo "Error: GH_TOKEN or GITHUB_TOKEN must be set for gh CLI authentication" >&2
+    exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REVIEW_MARKER="## Skill Eval Results"
 
