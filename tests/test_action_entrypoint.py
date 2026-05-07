@@ -1,10 +1,9 @@
 """Tests for action-entrypoint.sh event routing and env var threading."""
 import json
 import os
+import re
 import stat
 import subprocess
-
-import re
 
 import pytest
 
