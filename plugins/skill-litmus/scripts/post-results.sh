@@ -11,6 +11,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REVIEW_MARKER="## Skill Eval Results"
 
+require_gh_token() {
+    if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
+        echo "Error: GH_TOKEN or GITHUB_TOKEN must be set for gh CLI authentication" >&2
+        exit 1
+    fi
+}
+
 detect_pr_number() {
     local pr_num="${PR_NUMBER:-}"
     if [[ -z "$pr_num" ]]; then
@@ -29,6 +36,7 @@ shift
 
 case "$MODE" in
     pr)
+        require_gh_token
         WORKSPACES=()
         while [[ $# -gt 0 ]]; do
             case "$1" in
@@ -156,6 +164,7 @@ case "$MODE" in
         ;;
 
     comment-reply)
+        require_gh_token
         COMMENT_ID=""
         BODY=""
         REACTION=""

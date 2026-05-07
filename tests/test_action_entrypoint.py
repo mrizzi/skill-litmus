@@ -1,6 +1,7 @@
 """Tests for action-entrypoint.sh event routing and env var threading."""
 import json
 import os
+import re
 import stat
 import subprocess
 
@@ -18,7 +19,23 @@ def mock_bin(tmp_path):
 
     for name in ("gh", "git", "claude"):
         stub = mock_dir / name
-        stub.write_text(f'''#!/usr/bin/env bash
+        if name == "gh":
+            stub.write_text(f'''#!/usr/bin/env bash
+if [[ -z "${{GH_TOKEN:-}}" && -z "${{GITHUB_TOKEN:-}}" ]]; then
+    echo "gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable." >&2
+    exit 4
+fi
+echo "{name} $*" >> "{log_file}"
+case "$*" in
+  *"repo view"*) echo "main" ;;
+  *"pr view"*baseRefOid*) echo "abc123" ;;
+  *"diff --name-only"*) echo "" ;;
+  *) echo "mock-ok" ;;
+esac
+exit 0
+''')
+        else:
+            stub.write_text(f'''#!/usr/bin/env bash
 echo "{name} $*" >> "{log_file}"
 case "$*" in
   *"repo view"*) echo "main" ;;
@@ -59,6 +76,7 @@ def _base_env(tmp_path, action_path, mock_dir):
     env["ACTION_PATH"] = action_path
     env["EVALS_DIR"] = str(tmp_path / "evals") + "/"
     env["RUNNER_TEMP"] = str(tmp_path / "runner-temp")
+    env["GH_TOKEN"] = "test-token"
     os.makedirs(env["RUNNER_TEMP"], exist_ok=True)
     env.pop("SKILLS_DIR", None)
     env.pop("BASELINE_BRANCH", None)
@@ -293,3 +311,44 @@ def test_unsupported_event_exits_cleanly(tmp_path, mock_bin, action_scripts):
     )
     assert result.returncode == 0
     assert "Unsupported event" in result.stdout
+
+
+# --- action.yml contract tests ---
+
+def test_action_yml_sets_required_env_vars():
+    """action.yml must pass all env vars the entrypoint and downstream scripts need."""
+    with open("action.yml") as f:
+        content = f.read()
+    # Extract env keys from the "Run evals" step's env block
+    m = re.search(r'- name: Run evals\n.*?env:\n((?:\s+\w+:.*\n)+)', content, re.DOTALL)
+    assert m, "Could not find 'Run evals' step with env block in action.yml"
+    env_keys = set(re.findall(r'^\s+(\w+):', m.group(1), re.MULTILINE))
+    required = {"GH_TOKEN", "EVALS_DIR", "ACTION_PATH",
+                "PR_NUMBER", "PR_BASE_SHA"}
+    missing = required - env_keys
+    assert not missing, f"action.yml 'Run evals' step missing env vars: {missing}"
+
+
+# --- gh authentication tests ---
+
+def test_gh_fails_without_token(tmp_path, mock_bin, action_scripts):
+    """Mock gh must reject calls when GH_TOKEN is unset, like real gh in CI."""
+    mock_dir, _ = mock_bin
+    action_path, scripts_log = action_scripts
+    env = _base_env(tmp_path, action_path, mock_dir)
+    env["GITHUB_EVENT_NAME"] = "issue_comment"
+    env["PR_URL"] = "https://api.github.com/repos/o/r/pulls/1"
+    env["COMMENT_ID"] = "111"
+    env["AUTHOR_ASSOC"] = "OWNER"
+    env["PR_NUMBER"] = "1"
+    env.pop("GH_TOKEN", None)
+    env.pop("GITHUB_TOKEN", None)
+
+    comment_file = tmp_path / "runner-temp" / "comment_body.txt"
+    comment_file.write_text("/skill-litmus rerun\n")
+
+    result = subprocess.run(
+        ["bash", SCRIPT], capture_output=True, text=True, env=env,
+    )
+    assert result.returncode != 0
+    assert "GH_TOKEN" in result.stderr

@@ -3,7 +3,7 @@
 # Extracted from action.yml for testability.
 #
 # Required env vars (set by action.yml):
-#   GITHUB_EVENT_NAME, ACTION_PATH, EVALS_DIR
+#   GITHUB_EVENT_NAME, ACTION_PATH, EVALS_DIR, GH_TOKEN
 # Optional env vars:
 #   SKILLS_DIR, BASELINE_BRANCH, PR_NUMBER, PR_BASE_SHA, GITHUB_SHA,
 #   COMMENT_ID, AUTHOR_ASSOC, PR_URL, RUNNER_TEMP
